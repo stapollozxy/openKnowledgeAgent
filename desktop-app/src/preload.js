@@ -1,0 +1,38 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('studyAgent', {
+  run: (args) => ipcRenderer.invoke('agent:run', args),
+  copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
+  sendChat: (message, sessionId, topicId) => ipcRenderer.invoke('chat:send', message, sessionId, topicId),
+  updateProfile: (changes, sessionId) => ipcRenderer.invoke('profile:update', changes, sessionId),
+  authState: () => ipcRenderer.invoke('auth:state'),
+  signIn: () => ipcRenderer.invoke('auth:sign-in'),
+  cancelSignIn: () => ipcRenderer.invoke('auth:cancel'),
+  disconnect: () => ipcRenderer.invoke('auth:disconnect'),
+  openUsage: () => ipcRenderer.invoke('auth:usage'),
+  selectModel: (model) => ipcRenderer.invoke('auth:model', model),
+  onAuthState: (callback) => ipcRenderer.on('auth:state', (_event, state) => callback(state)),
+  githubState: () => ipcRenderer.invoke('github:state'),
+  githubLogin: () => ipcRenderer.invoke('github:login'),
+  githubLogout: () => ipcRenderer.invoke('github:logout'),
+  onGitHubState: (callback) => ipcRenderer.on('github:state', (_event, state) => callback(state)),
+  currentInsights: () => ipcRenderer.invoke('insights:current'),
+  generateInsights: () => ipcRenderer.invoke('insights:generate'),
+  openKnowledge: () => ipcRenderer.invoke('knowledge:open'),
+  knowledgeState: () => ipcRenderer.invoke('knowledge:state'),
+  chooseKnowledge: () => ipcRenderer.invoke('knowledge:choose'),
+  toggleWindow: () => ipcRenderer.invoke('window:toggle'),
+  expandWindow: () => ipcRenderer.invoke('window:expand'),
+  compactWindow: () => ipcRenderer.invoke('window:compact'),
+  onWindowState: (callback) => ipcRenderer.on('window:state', (_event, state) => callback(state)),
+  chooseProject: () => ipcRenderer.invoke('project:choose'),
+  exportData: () => ipcRenderer.invoke('data:export'),
+  importData: () => ipcRenderer.invoke('data:import'),
+  extractImageText: (dataUrl) => ipcRenderer.invoke('image:extract-text', dataUrl),
+  requestMicrophone: () => ipcRenderer.invoke('voice:permission'),
+  startSystemSpeech: (locale) => ipcRenderer.invoke('voice:system-start', locale),
+  stopSystemSpeech: () => ipcRenderer.invoke('voice:system-stop'),
+  onSpeechEvent: (callback) => ipcRenderer.on('voice:event', (_event, state) => callback(state)),
+  transcribe: (audioBytes) => ipcRenderer.invoke('voice:transcribe', audioBytes)
+});
+

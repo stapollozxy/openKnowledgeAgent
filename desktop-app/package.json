@@ -1,0 +1,16 @@
+{
+  "name": "open-knowledge-agent-desktop",
+  "version": "0.1.0",
+  "description": "Desktop UI for Open Knowledge Agent",
+  "main": "src/main.js",
+  "private": true,
+  "dependencies": {
+    "@siwc/local": "file:vendor/siwc-local-0.1.0.tgz"
+  },
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^45.2.3"
+  }
+}

@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open Knowledge Agent</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="compact">
+  <div class="app-shell">
+    <aside id="sidebar" class="sidebar hidden">
+      <div class="sidebar-title topic-heading">
+        <span>Topics</span>
+        <button id="newTopic" class="icon-button" title="New topic">＋</button>
+      </div>
+      <div id="topicList" class="topic-list"></div>
+      <div class="sidebar-title">
+        <span>Sessions</span>
+        <button id="newChatSide" class="icon-button" title="New chat">＋</button>
+      </div>
+      <button id="insightsNav" class="insights-nav"><span>✦</span> Insights</button>
+      <div id="sessionList" class="session-list"></div>
+    </aside>
+
+    <main class="main">
+      <div id="dragHandle" class="drag-handle" title="Drag to move window"><span>•••</span></div>
+      <header>
+        <button id="agentIcon" class="agent-icon" title="Sessions and history">
+          <img src="../assets/AppIconSource.png" alt="Open Knowledge Agent">
+        </button>
+        <div class="identity">
+          <h1>Open Knowledge Agent</h1>
+          <p id="activeTopicLabel">General Learning · Projects · Knowledge</p>
+        </div>
+        <button id="newChat" class="header-button" title="New chat">✎</button>
+        <button id="settings" class="header-button" title="Settings">⚙</button>
+      </header>
+
+      <section id="topicBar" class="topic-bar" aria-label="Topic controls">
+        <label class="topic-picker-copy" for="topicPicker">
+          <span>Current topic</span>
+          <select id="topicPicker" class="topic-picker" aria-label="Choose current topic"></select>
+        </label>
+        <button id="newTopicMain" class="new-topic-button">＋ New topic</button>
+      </section>
+
+      <section class="actions">
+        <button id="typeButton" class="action-button"><span>⌨</span> Type</button>
+        <button id="voiceButton" class="action-button"><span>●</span> Voice</button>
+      </section>
+
+      <section id="accountBar" class="account-bar">
+        <div class="account-copy">
+          <span id="accountDot" class="account-dot"></span>
+          <div>
+            <strong id="accountTitle">ChatGPT not connected</strong>
+            <span id="accountDetail">Connect your account or use an API key fallback</span>
+          </div>
+        </div>
+        <select id="modelSelect" class="model-select hidden" title="ChatGPT model"></select>
+        <button id="usageButton" class="account-button hidden">Usage</button>
+        <button id="disconnectButton" class="account-button hidden">Sign out</button>
+        <button id="signInButton" class="chatgpt-button">Continue with ChatGPT</button>
+      </section>
+
+      <section id="githubBar" class="account-bar github-bar">
+        <div class="account-copy">
+          <span id="githubDot" class="account-dot"></span>
+          <div>
+            <strong id="githubTitle">GitHub not connected</strong>
+            <span id="githubDetail">Connect to read repositories, commits, PRs, and issues</span>
+          </div>
+        </div>
+        <button id="githubLogoutButton" class="account-button hidden">Sign out</button>
+        <button id="githubLoginButton" class="github-button">Connect GitHub</button>
+      </section>
+
+      <section id="messages" class="messages">
+        <div id="emptyState" class="empty-state">
+          <div class="sparkle">✦</div>
+          <h2>Start a chat</h2>
+          <p>Learn a course, explore a topic, plan your day, or build a project.</p>
+        </div>
+      </section>
+
+      <section id="insightsPanel" class="insights-panel hidden">
+        <div class="insights-heading">
+          <div>
+            <h2>Learning Insights</h2>
+            <p id="insightsUpdated">Built from your chats, tasks, evidence, and GitHub activity.</p>
+          </div>
+          <div class="insights-actions">
+            <button id="setKnowledgeLocation" class="refresh-insights secondary">Set Knowledge Location</button>
+            <button id="exportData" class="refresh-insights secondary">Export Data</button>
+            <button id="importData" class="refresh-insights secondary">Import Data</button>
+            <button id="openKnowledge" class="refresh-insights secondary">Open Knowledge Folder</button>
+            <button id="refreshInsights" class="refresh-insights">↻ Refresh Insights</button>
+          </div>
+        </div>
+
+        <div id="insightsEmpty" class="insights-empty">
+          <div class="sparkle">✦</div>
+          <h3>No insight snapshot yet</h3>
+          <p>Generate one after you have a few chats or learning check-ins.</p>
+        </div>
+
+        <div id="insightsContent" class="insights-content hidden">
+          <article class="insight-card overview-card">
+            <span class="insight-kicker">OVERVIEW</span>
+            <p id="insightOverview"></p>
+          </article>
+          <div class="insight-grid two-columns">
+            <article class="insight-card">
+              <h3>Strengths</h3>
+              <div id="strengthsList" class="insight-list"></div>
+            </article>
+            <article class="insight-card">
+              <h3>Knowledge gaps</h3>
+              <div id="gapsList" class="insight-list"></div>
+            </article>
+          </div>
+          <article class="insight-card">
+            <div class="card-title-row"><h3>Meaningful Questions</h3><span>问题本 · 用来复习，不是收藏</span></div>
+            <div id="questionsList" class="question-list"></div>
+          </article>
+          <article class="insight-card">
+            <div class="card-title-row"><h3>What to Learn Next</h3><span>按依赖和求职价值排序</span></div>
+            <div id="learningList" class="learning-list"></div>
+          </article>
+          <article class="insight-card">
+            <div class="card-title-row"><h3>Industry Projects</h3><span>从技术概念到 production evidence</span></div>
+            <div id="projectsList" class="project-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <div id="status" class="status hidden"><span class="spinner"></span><span id="statusText">Agent is thinking…</span></div>
+      <div id="error" class="error hidden"></div>
+
+      <footer id="composer">
+        <div class="composer-stack">
+          <div id="imageTray" class="image-tray hidden"></div>
+          <textarea id="input" rows="1" placeholder="Ask about this topic, course, project, or plan…"></textarea>
+        </div>
+        <button id="sendButton" class="send-button" title="Send">↑</button>
+      </footer>
+    </main>
+  </div>
+
+  <div id="topicDialog" class="dialog-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="topicDialogTitle">
+    <div class="topic-dialog-card">
+      <span class="dialog-kicker">NEW TOPIC</span>
+      <h2 id="topicDialogTitle">What do you want to learn?</h2>
+      <p>Topics keep related chats and sessions together.</p>
+      <input id="topicNameInput" maxlength="80" autocomplete="off" placeholder="e.g. Distributed systems">
+      <div class="dialog-actions">
+        <button id="cancelTopic" class="dialog-secondary">Cancel</button>
+        <button id="confirmTopic" class="dialog-primary">Create topic</button>
+      </div>
+    </div>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>
+
