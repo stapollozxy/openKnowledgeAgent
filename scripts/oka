@@ -1,0 +1,40 @@
+#!/bin/zsh
+set -euo pipefail
+
+script_dir="${0:A:h}"
+repo_root="${script_dir:h}"
+backend_root="$repo_root/study-agent"
+python_bin="${OPEN_KNOWLEDGE_AGENT_PYTHON:-/usr/bin/python3}"
+user_home="${HOME:?HOME is required}"
+app_support="${OPEN_KNOWLEDGE_AGENT_APP_SUPPORT:-$user_home/Library/Application Support/Open Knowledge Agent}"
+config_file="$app_support/config.json"
+
+data_home="${OPEN_KNOWLEDGE_AGENT_DATA_HOME:-$app_support/data}"
+knowledge_home="${OPEN_KNOWLEDGE_AGENT_KNOWLEDGE_HOME:-}"
+
+if [[ -z "$knowledge_home" && -f "$config_file" ]]; then
+  knowledge_home="$($python_bin - "$config_file" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+config = Path(sys.argv[1])
+try:
+    parent = json.loads(config.read_text(encoding="utf-8")).get("knowledgeParentPath", "")
+except (OSError, ValueError, TypeError):
+    parent = ""
+print(str(Path(parent) / "Open Knowledge Agent Knowledge") if parent else "")
+PY
+)"
+fi
+
+if [[ -z "$knowledge_home" ]]; then
+  knowledge_home="$app_support/knowledge"
+fi
+
+export PYTHONDONTWRITEBYTECODE=1
+export PYTHONPATH="$backend_root/src${PYTHONPATH:+:$PYTHONPATH}"
+export STUDY_AGENT_HOME="$data_home"
+export STUDY_AGENT_KNOWLEDGE_HOME="$knowledge_home"
+
+exec "$python_bin" -m study_agent.cli "$@"

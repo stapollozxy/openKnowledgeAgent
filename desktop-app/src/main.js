@@ -447,11 +447,11 @@ async function sendChatMessage(message, sessionId, topicId) {
       instructions: payload.instructions,
       input: payload.input
     });
-    await runAgent([
+    const saved = JSON.parse(await runAgent([
       'chat-save', '--session', String(payload.session_id),
       '--user', message, '--assistant', result.text
-    ]);
-    return { session_id: payload.session_id, message: result.text, auth: 'chatgpt' };
+    ]));
+    return { ...saved, auth: 'chatgpt' };
   }
 
   const args = ['chat', message, '--json'];
@@ -569,6 +569,14 @@ app.on('window-all-closed', () => app.quit());
 ipcMain.handle('agent:run', async (_event, args) => runAgent(args));
 ipcMain.handle('clipboard:write', async (_event, text) => clipboard.writeText(String(text)));
 ipcMain.handle('chat:send', async (_event, message, sessionId, topicId) => sendChatMessage(message, sessionId, topicId));
+ipcMain.handle('profile:update', async (_event, changes, sessionId) => {
+  if (!changes || Array.isArray(changes) || typeof changes !== 'object') {
+    throw new Error('Profile changes must be an object.');
+  }
+  const args = ['profile-update', '--changes-json', JSON.stringify(changes)];
+  if (sessionId) args.push('--session', String(sessionId));
+  return JSON.parse(await runAgent(args));
+});
 ipcMain.handle('auth:state', async () => publicAuthState());
 ipcMain.handle('auth:sign-in', async () => changeChatGPTAccount(() => chatgpt.signIn()));
 ipcMain.handle('auth:cancel', () => chatgpt?.cancelSignIn());

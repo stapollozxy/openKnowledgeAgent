@@ -33,8 +33,16 @@
           <p id="activeTopicLabel">General Learning · Projects · Knowledge</p>
         </div>
         <button id="newChat" class="header-button" title="New chat">✎</button>
-        <button id="settings" class="header-button" title="Choose backend folder">⚙</button>
+        <button id="settings" class="header-button" title="Settings">⚙</button>
       </header>
+
+      <section id="topicBar" class="topic-bar" aria-label="Topic controls">
+        <label class="topic-picker-copy" for="topicPicker">
+          <span>Current topic</span>
+          <select id="topicPicker" class="topic-picker" aria-label="Choose current topic"></select>
+        </label>
+        <button id="newTopicMain" class="new-topic-button">＋ New topic</button>
+      </section>
 
       <section class="actions">
         <button id="typeButton" class="action-button"><span>⌨</span> Type</button>
@@ -137,6 +145,19 @@
         <button id="sendButton" class="send-button" title="Send">↑</button>
       </footer>
     </main>
+  </div>
+
+  <div id="topicDialog" class="dialog-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="topicDialogTitle">
+    <div class="topic-dialog-card">
+      <span class="dialog-kicker">NEW TOPIC</span>
+      <h2 id="topicDialogTitle">What do you want to learn?</h2>
+      <p>Topics keep related chats and sessions together.</p>
+      <input id="topicNameInput" maxlength="80" autocomplete="off" placeholder="e.g. Distributed systems">
+      <div class="dialog-actions">
+        <button id="cancelTopic" class="dialog-secondary">Cancel</button>
+        <button id="confirmTopic" class="dialog-primary">Create topic</button>
+      </div>
+    </div>
   </div>
   <script src="renderer.js"></script>
 </body>

@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('studyAgent', {
   run: (args) => ipcRenderer.invoke('agent:run', args),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   sendChat: (message, sessionId, topicId) => ipcRenderer.invoke('chat:send', message, sessionId, topicId),
+  updateProfile: (changes, sessionId) => ipcRenderer.invoke('profile:update', changes, sessionId),
   authState: () => ipcRenderer.invoke('auth:state'),
   signIn: () => ipcRenderer.invoke('auth:sign-in'),
   cancelSignIn: () => ipcRenderer.invoke('auth:cancel'),
