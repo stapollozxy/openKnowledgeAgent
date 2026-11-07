@@ -10,6 +10,7 @@ const styles = fs.readFileSync(path.join(root, 'src', 'styles.css'), 'utf8');
 const preload = fs.readFileSync(path.join(root, 'src', 'preload.js'), 'utf8');
 const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8');
 const build = fs.readFileSync(path.join(root, 'build_app.sh'), 'utf8');
+const markdown = fs.readFileSync(path.join(root, 'src', 'markdown.js'), 'utf8');
 
 test('chat input protects IME composition from premature submit', () => {
   assert.match(renderer, /compositionstart/);
@@ -63,4 +64,12 @@ test('long-term profile changes require an explicit UI confirmation', () => {
   assert.match(preload, /ipcRenderer\.invoke\('profile:update'/);
   assert.match(main, /ipcMain\.handle\('profile:update'/);
   assert.match(styles, /\.profile-update-card/);
+});
+
+test('live and historical session messages use the safe markdown renderer', () => {
+  assert.match(html, /<script src="markdown\.js"><\/script>\s*<script src="renderer\.js"><\/script>/);
+  assert.match(renderer, /OpenKnowledgeMarkdown\.renderMarkdown\(content\)/);
+  assert.doesNotMatch(renderer, /bubble\.textContent\s*=\s*content/);
+  assert.match(markdown, /escapeHtml/);
+  assert.match(styles, /\.bubble pre/);
 });

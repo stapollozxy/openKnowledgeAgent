@@ -99,7 +99,7 @@ function addMessage(role, content) {
   row.className = `message-row ${role}`;
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
-  bubble.textContent = content;
+  bubble.innerHTML = window.OpenKnowledgeMarkdown.renderMarkdown(content);
   row.appendChild(bubble);
   messagesNode.appendChild(row);
   messagesNode.scrollTop = messagesNode.scrollHeight;
