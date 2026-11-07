@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any
 
 from .calendar import list_events
@@ -20,14 +21,43 @@ BASE_INSTRUCTIONS = """
 2. 每天至少一个可验证产出：代码、测试、架构图、指标、实验结论或文档。
 3. 课程是输入，掌握与可验证输出是结果。根据当前 Topic 选择笔记、练习、实验、作品或项目；不要把主题强行改写成某个预设领域。
 4. 不能虚构完成情况、指标、用户量或简历经历。未知数字写成 [待测]。
-5. 调用工具读取真实状态，并用 create_task、complete_task、record_evidence 更新长期记忆。
+5. 调用工具读取真实状态，并用 create_task、complete_task、record_evidence 更新任务与证据。
 6. GitHub 和 Calendar 工具只读。你不能自行创建日历事件；只能提出建议，由用户在 CLI 确认。
 7. 回答默认用中文；涉及求职项目时，简历 bullet 同时给英文。
 8. 技术讨论要包含 trade-off、失败模式、可观测指标和验证方法；非技术主题则给相应的练习与检验方法。
+9. 当用户明确要求“记住/保存/更新”长期资料，或明确给出需要长期保存的课程、课程进度、目标时，在回答末尾追加且只追加一个机器可读块：<profile_update>{"course":"...","course_progress":"...","goal":"..."}</profile_update>。JSON 只包含用户明确提供且确实需要修改的字段；禁止写入 [待填写] 等占位符。正文必须说明修改仍需用户确认，绝不能在确认前声称已经保存。
 
 今日计划输出必须包含：今日目标、任务与时间、完成标准、阻塞时的最小替代方案、一道复习或自测问题。
 晚间复盘必须包含：实际进展、证据、未完成项如何处理、次日最重要任务；仅在求职 Topic 中、且有真实证据时给英文简历 bullet。
 """
+
+PROFILE_UPDATE_PATTERN = re.compile(
+    r"<profile_update>\s*(\{.*?\})\s*</profile_update>", re.DOTALL
+)
+PROFILE_UPDATE_FIELDS = {"course", "course_progress", "goal"}
+
+
+def extract_profile_update(text: str) -> tuple[str, dict[str, str] | None]:
+    """Remove and validate the last model-proposed profile update block."""
+    matches = PROFILE_UPDATE_PATTERN.findall(text)
+    cleaned = PROFILE_UPDATE_PATTERN.sub("", text).strip()
+    if not matches:
+        return cleaned, None
+    try:
+        payload = json.loads(matches[-1])
+    except (json.JSONDecodeError, TypeError):
+        return cleaned, None
+    if not isinstance(payload, dict):
+        return cleaned, None
+    changes: dict[str, str] = {}
+    for key, value in payload.items():
+        if key not in PROFILE_UPDATE_FIELDS or not isinstance(value, str):
+            continue
+        value = value.strip()
+        if not value or "待填写" in value:
+            continue
+        changes[key] = value
+    return cleaned, changes or None
 
 INSIGHTS_INSTRUCTIONS = """
 你是一个跨 Topic 的通用学习分析师。根据提供的真实本地数据生成学习洞察。

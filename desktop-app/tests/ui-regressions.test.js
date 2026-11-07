@@ -46,3 +46,21 @@ test('packaged app includes a backend for sign-in-first use', () => {
   assert.match(main, /backend', 'src/);
   assert.match(build, /study-agent\/src/);
 });
+
+test('expanded chat exposes a prominent topic picker and inline topic creation', () => {
+  assert.match(html, /id="topicPicker"/);
+  assert.match(html, /id="newTopicMain"/);
+  assert.match(html, /id="topicDialog"/);
+  assert.match(renderer, /topicPicker\.addEventListener\(['"]change['"]/);
+  assert.match(renderer, /topicNameInput\.addEventListener\(['"]compositionstart['"]/);
+  assert.match(styles, /\.topic-bar[\s\S]*\.new-topic-button/);
+});
+
+test('long-term profile changes require an explicit UI confirmation', () => {
+  assert.match(renderer, /Save to long-term profile\?/);
+  assert.match(renderer, /Confirm & save/);
+  assert.match(renderer, /window\.studyAgent\.updateProfile/);
+  assert.match(preload, /ipcRenderer\.invoke\('profile:update'/);
+  assert.match(main, /ipcMain\.handle\('profile:update'/);
+  assert.match(styles, /\.profile-update-card/);
+});

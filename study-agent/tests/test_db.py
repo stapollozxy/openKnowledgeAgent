@@ -1,4 +1,7 @@
 from pathlib import Path
+import sqlite3
+
+import pytest
 
 from study_agent.cli import require_profile
 from study_agent.db import Store
@@ -42,6 +45,49 @@ def test_empty_progress_does_not_erase_existing_progress(tmp_path: Path) -> None
     db.save_profile("first-goal", None, 10, None, "stage-two")
     db.save_profile("second-goal", None, 8, None, "")
     assert db.profile()["course_progress"] == "stage-two"
+
+
+def test_confirmed_profile_fields_are_updated_and_unknown_fields_are_rejected(tmp_path: Path) -> None:
+    db = Store(tmp_path / "agent.db")
+    db.save_profile("", None, 10, None)
+
+    profile = db.update_profile({
+        "course": "Distributed Systems",
+        "course_progress": "Chapter 3",
+        "goal": "Build a replicated key-value store",
+    })
+
+    assert profile["course"] == "Distributed Systems"
+    assert profile["course_progress"] == "Chapter 3"
+    assert profile["goal"] == "Build a replicated key-value store"
+    with pytest.raises(ValueError, match="not writable"):
+        db.update_profile({"api_key": "must-never-be-written"})
+
+
+def test_existing_profile_database_is_migrated_with_a_course_column(tmp_path: Path) -> None:
+    path = tmp_path / "agent.db"
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE profile (
+                id INTEGER PRIMARY KEY,
+                goal TEXT NOT NULL,
+                deadline TEXT,
+                weekly_hours REAL NOT NULL,
+                github_repo TEXT,
+                course_progress TEXT NOT NULL DEFAULT '',
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            "INSERT INTO profile VALUES (1, 'goal', NULL, 10, NULL, 'chapter 1', 'now')"
+        )
+
+    db = Store(path)
+
+    assert db.profile()["course"] == ""
+    assert db.profile()["course_progress"] == "chapter 1"
 
 
 def test_chat_sessions_persist_messages(tmp_path: Path) -> None:

@@ -8,7 +8,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from .agent import direct_chat_payload, insights_payload, run_agent
+from .agent import direct_chat_payload, extract_profile_update, insights_payload, run_agent
 from .calendar import create_event, list_events
 from .db import Store
 from .system_clock import system_time
@@ -70,6 +70,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         weekly_hours=args.weekly_hours,
         github_repo=args.github,
         course_progress=args.progress,
+        course=args.course,
     )
     print(f"Initialized study agent at {db.path}")
 
@@ -139,12 +140,20 @@ def cmd_chat(args: argparse.Namespace) -> None:
         conversation=conversation,
         topic_name=session.get("topic_name") or "General",
     )
+    response, changes = extract_profile_update(response)
+    proposal = (
+        {"changes": changes, "current": db.profile() or {}} if changes else None
+    )
     db.add_message(session_id, "user", args.message)
     db.add_message(session_id, "assistant", response)
     if len(conversation) == 0:
         db.rename_session(session_id, args.message[:48])
     if args.json:
-        print(json.dumps({"session_id": session_id, "message": response}, ensure_ascii=False))
+        print(json.dumps({
+            "session_id": session_id,
+            "message": response,
+            "profile_update": proposal,
+        }, ensure_ascii=False))
     else:
         print(response)
 
@@ -179,11 +188,47 @@ def cmd_chat_save(args: argparse.Namespace) -> None:
     if not db.session(args.session):
         raise SystemExit(f"Session {args.session} not found.")
     is_first = len(db.messages(args.session, limit=1)) == 0
+    response, changes = extract_profile_update(args.assistant)
+    proposal = (
+        {"changes": changes, "current": db.profile() or {}} if changes else None
+    )
     db.add_message(args.session, "user", args.user)
-    db.add_message(args.session, "assistant", args.assistant)
+    db.add_message(args.session, "assistant", response)
     if is_first:
         db.rename_session(args.session, args.user[:48])
-    print(json.dumps({"session_id": args.session, "saved": True}))
+    print(json.dumps({
+        "session_id": args.session,
+        "saved": True,
+        "message": response,
+        "profile_update": proposal,
+    }, ensure_ascii=False))
+
+
+def cmd_profile_update(args: argparse.Namespace) -> None:
+    db = store()
+    require_profile(db)
+    try:
+        changes = json.loads(args.changes_json)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"Invalid profile changes JSON: {exc}") from exc
+    if not isinstance(changes, dict):
+        raise SystemExit("Profile changes must be a JSON object.")
+    try:
+        profile = db.update_profile(changes)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    labels = {
+        "course": "course",
+        "course_progress": "course progress",
+        "goal": "goal",
+    }
+    updated = ", ".join(labels[key] for key in changes if key in labels)
+    message = f"Saved to long-term profile: {updated}."
+    if args.session is not None:
+        if not db.session(args.session):
+            raise SystemExit(f"Session {args.session} not found.")
+        db.add_message(args.session, "assistant", message)
+    print(json.dumps({"saved": True, "profile": profile, "message": message}, ensure_ascii=False))
 
 
 def cmd_auth_status(_: argparse.Namespace) -> None:
@@ -387,6 +432,7 @@ def parser() -> argparse.ArgumentParser:
     init.add_argument("--deadline")
     init.add_argument("--weekly-hours", type=float, default=10)
     init.add_argument("--github", help="GitHub repository in owner/repo format")
+    init.add_argument("--course", default="")
     init.add_argument("--progress", default="")
     init.set_defaults(func=cmd_init)
 
@@ -429,6 +475,13 @@ def parser() -> argparse.ArgumentParser:
     chat_save.add_argument("--user", required=True)
     chat_save.add_argument("--assistant", required=True)
     chat_save.set_defaults(func=cmd_chat_save)
+
+    profile_update = sub.add_parser(
+        "profile-update", help="Apply user-confirmed long-term profile changes"
+    )
+    profile_update.add_argument("--changes-json", required=True)
+    profile_update.add_argument("--session", type=int)
+    profile_update.set_defaults(func=cmd_profile_update)
 
     auth_status = sub.add_parser("auth-status", help="Show configured auth methods")
     auth_status.set_defaults(func=cmd_auth_status)
