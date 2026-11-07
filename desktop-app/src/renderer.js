@@ -248,6 +248,7 @@ function renderTypeButton() {
 
 function showChatView() {
   viewMode = 'chat';
+  iconButton.title = 'Sessions and history';
   document.body.classList.remove('insights-mode');
   insightsPanel.classList.add('hidden');
   insightsNav.classList.remove('active');
@@ -256,6 +257,7 @@ function showChatView() {
 
 function showInsightsView() {
   viewMode = 'insights';
+  iconButton.title = 'Back to chat';
   document.body.classList.add('insights-mode');
   insightsPanel.classList.remove('hidden');
   insightsNav.classList.add('active');
@@ -780,6 +782,19 @@ async function stopVoice() {
 }
 
 iconButton.addEventListener('click', async () => {
+  if (viewMode === 'insights') {
+    showChatView();
+    if (compactMode) {
+      await window.studyAgent.expandWindow();
+      compactMode = false;
+      document.body.classList.remove('compact');
+      renderTypeButton();
+    }
+    sidebar.classList.remove('hidden');
+    await loadSessions();
+    input.focus();
+    return;
+  }
   const state = await window.studyAgent.toggleWindow();
   compactMode = state.compact;
   document.body.classList.toggle('compact', compactMode);

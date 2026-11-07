@@ -512,7 +512,7 @@ function setCompact(nextCompact) {
     mainWindow.setPosition(x, y, true);
   } else {
     mainWindow.setResizable(true);
-    mainWindow.setAlwaysOnTop(false);
+    mainWindow.setAlwaysOnTop(true, 'floating');
     mainWindow.setWindowButtonVisibility(true);
     mainWindow.setSize(EXPANDED_SIZE.width, EXPANDED_SIZE.height, true);
     mainWindow.center();

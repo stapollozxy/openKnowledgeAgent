@@ -73,3 +73,16 @@ test('live and historical session messages use the safe markdown renderer', () =
   assert.match(markdown, /escapeHtml/);
   assert.match(styles, /\.bubble pre/);
 });
+
+test('expanded and compact windows both remain visible above switched apps', () => {
+  assert.match(main, /setVisibleOnAllWorkspaces\(true/);
+  assert.doesNotMatch(main, /setAlwaysOnTop\(false\)/);
+  assert.match(main, /setAlwaysOnTop\(true, ['"]floating['"]\)/);
+});
+
+test('clicking the robot icon leaves Insights and returns to the chat home', () => {
+  assert.match(
+    renderer,
+    /iconButton\.addEventListener\(['"]click['"][\s\S]*viewMode\s*===\s*['"]insights['"][\s\S]*showChatView\(\)/
+  );
+});
