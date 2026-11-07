@@ -77,20 +77,6 @@ npm start
 
 See [study-agent/README.md](study-agent/README.md) and [desktop-app/README.md](desktop-app/README.md) for component details.
 
-## VS Code Codex
-
-Open this repository as the VS Code workspace and start a Codex chat. Ask to enter **Open Knowledge Agent mode** or make a learning/course/topic request. The project `AGENTS.md` routes Codex to `./scripts/oka`, which shares the macOS app's local profile, topics, sessions, tasks, evidence, and knowledge without copying ChatGPT credentials or requiring an API key.
-
-The first shared-data command may ask Codex for read/write permission to `~/Library/Application Support/Open Knowledge Agent`. Approve that precise directory to let VS Code and the desktop app use the same local state.
-
-```bash
-./scripts/oka status
-./scripts/oka topics
-./scripts/oka --help
-```
-
-Profile changes still require explicit confirmation. Set `OPEN_KNOWLEDGE_AGENT_APP_SUPPORT` or the more specific data/knowledge environment variables documented in `docs/codex-agent.md` when using a non-default data location.
-
 ## Third-party component
 
 The bundled Sign in with ChatGPT devkit has its own noncommercial license inside `desktop-app/vendor/siwc-local-0.1.0.tgz`. Review that license before redistributing or using this project commercially.

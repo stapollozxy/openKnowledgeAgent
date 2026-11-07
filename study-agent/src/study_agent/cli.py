@@ -231,35 +231,6 @@ def cmd_profile_update(args: argparse.Namespace) -> None:
     print(json.dumps({"saved": True, "profile": profile, "message": message}, ensure_ascii=False))
 
 
-def cmd_task_new(args: argparse.Namespace) -> None:
-    db = store()
-    require_profile(db)
-    try:
-        task_id = db.add_task(args.title, args.details, args.minutes, args.due)
-    except ValueError as exc:
-        raise SystemExit(str(exc)) from exc
-    print(json.dumps({"task_id": task_id, "created": True}, ensure_ascii=False))
-
-
-def cmd_task_complete(args: argparse.Namespace) -> None:
-    db = store()
-    require_profile(db)
-    if not db.set_task_status(args.task, "done"):
-        raise SystemExit(f"Task {args.task} not found.")
-    print(json.dumps({"task_id": args.task, "status": "done"}, ensure_ascii=False))
-
-
-def cmd_evidence_add(args: argparse.Namespace) -> None:
-    db = store()
-    require_profile(db)
-    if args.task is not None and not any(
-        task["id"] == args.task for task in db.tasks(limit=1000)
-    ):
-        raise SystemExit(f"Task {args.task} not found.")
-    evidence_id = db.add_evidence(args.task, args.kind, args.value, args.note)
-    print(json.dumps({"evidence_id": evidence_id, "recorded": True}, ensure_ascii=False))
-
-
 def cmd_auth_status(_: argparse.Namespace) -> None:
     print(json.dumps({"api_key": bool(os.getenv("OPENAI_API_KEY"))}))
 
@@ -511,24 +482,6 @@ def parser() -> argparse.ArgumentParser:
     profile_update.add_argument("--changes-json", required=True)
     profile_update.add_argument("--session", type=int)
     profile_update.set_defaults(func=cmd_profile_update)
-
-    task_new = sub.add_parser("task-new", help="Create a local learning task")
-    task_new.add_argument("--title", required=True)
-    task_new.add_argument("--details", default="")
-    task_new.add_argument("--minutes", type=int, required=True)
-    task_new.add_argument("--due")
-    task_new.set_defaults(func=cmd_task_new)
-
-    task_complete = sub.add_parser("task-complete", help="Mark a task complete")
-    task_complete.add_argument("--task", type=int, required=True)
-    task_complete.set_defaults(func=cmd_task_complete)
-
-    evidence_add = sub.add_parser("evidence-add", help="Record verified learning evidence")
-    evidence_add.add_argument("--kind", required=True)
-    evidence_add.add_argument("--value", required=True)
-    evidence_add.add_argument("--note", default="")
-    evidence_add.add_argument("--task", type=int)
-    evidence_add.set_defaults(func=cmd_evidence_add)
 
     auth_status = sub.add_parser("auth-status", help="Show configured auth methods")
     auth_status.set_defaults(func=cmd_auth_status)
