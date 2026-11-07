@@ -8,6 +8,7 @@ The repository ships with no user profile, chat history, database, credentials, 
 
 - Organize conversations by topic and session.
 - Continue, fork, copy, and delete sessions.
+- Save course, course progress, and goals to the local long-term profile only after explicit in-app confirmation.
 - Use ChatGPT sign-in or an OpenAI API key.
 - Connect GitHub through the GitHub CLI.
 - Use macOS speech recognition for voice prompts.

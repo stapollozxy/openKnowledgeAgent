@@ -34,6 +34,10 @@ const activeTopicLabel = document.getElementById('activeTopicLabel');
 const exportDataButton = document.getElementById('exportData');
 const importDataButton = document.getElementById('importData');
 const imageTray = document.getElementById('imageTray');
+const topicPicker = document.getElementById('topicPicker');
+const topicDialog = document.getElementById('topicDialog');
+const topicNameInput = document.getElementById('topicNameInput');
+const confirmTopicButton = document.getElementById('confirmTopic');
 
 let currentSessionID = null;
 let currentTopicID = null;
@@ -50,6 +54,7 @@ let currentGitHubState = null;
 let viewMode = 'chat';
 let idleTimer = null;
 let isComposing = false;
+let topicNameComposing = false;
 let pendingImages = [];
 const IDLE_COMPACT_MS = 30_000;
 
@@ -57,7 +62,8 @@ function canAutoCompact() {
   const recording = systemVoiceActive || mediaRecorder?.state === 'recording';
   const signingIn = accountState?.session?.status === 'connecting' || accountState?.busy;
   const githubBusy = currentGitHubState?.busy;
-  return !compactMode && !busy && !recording && !signingIn && !githubBusy && !input.value.trim() && !pendingImages.length;
+  const topicDialogOpen = !topicDialog.classList.contains('hidden');
+  return !compactMode && !busy && !recording && !signingIn && !githubBusy && !topicDialogOpen && !input.value.trim() && !pendingImages.length;
 }
 
 function resetIdleTimer() {
@@ -96,6 +102,72 @@ function addMessage(role, content) {
   bubble.textContent = content;
   row.appendChild(bubble);
   messagesNode.appendChild(row);
+  messagesNode.scrollTop = messagesNode.scrollHeight;
+}
+
+const PROFILE_FIELD_LABELS = {
+  course: 'Course',
+  course_progress: 'Course progress',
+  goal: 'Goal'
+};
+
+function addProfileUpdateProposal(proposal, sessionId) {
+  if (!proposal?.changes || typeof proposal.changes !== 'object') return;
+  const entries = Object.entries(proposal.changes)
+    .filter(([key, value]) => PROFILE_FIELD_LABELS[key] && typeof value === 'string' && value.trim());
+  if (!entries.length) return;
+
+  const card = document.createElement('div');
+  card.className = 'profile-update-card';
+  const heading = document.createElement('strong');
+  heading.textContent = 'Save to long-term profile?';
+  const note = document.createElement('p');
+  note.textContent = 'Nothing changes until you confirm.';
+  const changes = document.createElement('div');
+  changes.className = 'profile-change-list';
+  entries.forEach(([key, value]) => {
+    const row = document.createElement('div');
+    const label = document.createElement('span');
+    label.textContent = PROFILE_FIELD_LABELS[key];
+    const comparison = document.createElement('p');
+    const previous = proposal.current?.[key] || 'Not set';
+    comparison.textContent = `${previous}  →  ${value.trim()}`;
+    row.append(label, comparison);
+    changes.appendChild(row);
+  });
+  const actions = document.createElement('div');
+  actions.className = 'profile-update-actions';
+  const dismiss = document.createElement('button');
+  dismiss.textContent = 'Not now';
+  const confirm = document.createElement('button');
+  confirm.className = 'confirm';
+  confirm.textContent = 'Confirm & save';
+  dismiss.addEventListener('click', () => {
+    actions.remove();
+    note.textContent = 'Not saved.';
+    card.classList.add('resolved');
+  });
+  confirm.addEventListener('click', async () => {
+    confirm.disabled = true;
+    dismiss.disabled = true;
+    clearError();
+    try {
+      const result = await window.studyAgent.updateProfile(
+        Object.fromEntries(entries), sessionId
+      );
+      actions.remove();
+      note.textContent = 'Saved locally.';
+      card.classList.add('saved', 'resolved');
+      addMessage('assistant', result.message);
+    } catch (error) {
+      confirm.disabled = false;
+      dismiss.disabled = false;
+      showError(error);
+    }
+  });
+  actions.append(dismiss, confirm);
+  card.append(heading, note, changes, actions);
+  messagesNode.appendChild(card);
   messagesNode.scrollTop = messagesNode.scrollHeight;
 }
 
@@ -342,7 +414,14 @@ async function ensureInitialized() {
 
 function renderTopics() {
   topicList.innerHTML = '';
+  topicPicker.innerHTML = '';
   topicsCache.forEach(topic => {
+    const option = document.createElement('option');
+    option.value = String(topic.id);
+    option.textContent = `${topic.name} (${topic.session_count})`;
+    option.selected = topic.id === currentTopicID;
+    topicPicker.appendChild(option);
+
     const row = document.createElement('div');
     row.className = 'topic-row';
     const button = document.createElement('button');
@@ -411,18 +490,43 @@ async function selectTopic(id) {
   renderTopics();
   const active = topicsCache.find(topic => topic.id === id);
   activeTopicLabel.textContent = active?.name || 'General';
+  topicPicker.value = String(id);
   await loadSessions();
 }
 
-async function createTopic() {
-  const name = window.prompt('New topic name');
-  if (!name?.trim()) return;
+function openTopicDialog() {
   clearError();
+  topicNameInput.value = '';
+  topicDialog.classList.remove('hidden');
+  resetIdleTimer();
+  setTimeout(() => topicNameInput.focus(), 0);
+}
+
+function closeTopicDialog() {
+  topicDialog.classList.add('hidden');
+  topicNameInput.value = '';
+  resetIdleTimer();
+}
+
+async function createTopic(name = topicNameInput.value) {
+  const trimmedName = name?.trim();
+  if (!trimmedName) {
+    topicNameInput.focus();
+    return;
+  }
+  clearError();
+  confirmTopicButton.disabled = true;
   try {
-    const result = JSON.parse(await run(['topic-new', '--name', name.trim()]));
+    const result = JSON.parse(await run(['topic-new', '--name', trimmedName]));
     await loadTopics(result.topic_id);
     await selectTopic(result.topic_id);
-  } catch (error) { showError(error); }
+    closeTopicDialog();
+  } catch (error) {
+    showError(error);
+    topicNameInput.focus();
+  } finally {
+    confirmTopicButton.disabled = false;
+  }
 }
 
 async function renameTopic(topic) {
@@ -639,6 +743,7 @@ async function sendMessage(text = input.value, speak = false) {
     const result = await window.studyAgent.sendChat(outboundText, currentSessionID, currentTopicID);
     currentSessionID = result.session_id;
     addMessage('assistant', result.message);
+    addProfileUpdateProposal(result.profile_update, result.session_id);
     await loadSessions();
     await loadTopics(currentTopicID);
     if (speak) {
@@ -738,7 +843,27 @@ input.addEventListener('input', () => {
 });
 document.getElementById('newChat').addEventListener('click', newChat);
 document.getElementById('newChatSide').addEventListener('click', newChat);
-document.getElementById('newTopic').addEventListener('click', createTopic);
+document.getElementById('newTopic').addEventListener('click', openTopicDialog);
+document.getElementById('newTopicMain').addEventListener('click', openTopicDialog);
+topicPicker.addEventListener('change', () => selectTopic(Number(topicPicker.value)));
+document.getElementById('cancelTopic').addEventListener('click', closeTopicDialog);
+confirmTopicButton.addEventListener('click', () => createTopic());
+topicNameInput.addEventListener('compositionstart', () => { topicNameComposing = true; });
+topicNameInput.addEventListener('compositionend', () => { topicNameComposing = false; });
+topicNameInput.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeTopicDialog();
+    return;
+  }
+  if (event.key === 'Enter' && !(event.isComposing || topicNameComposing || event.keyCode === 229)) {
+    event.preventDefault();
+    createTopic();
+  }
+});
+topicDialog.addEventListener('click', event => {
+  if (event.target === topicDialog) closeTopicDialog();
+});
 document.getElementById('settings').addEventListener('click', async () => {
   await window.studyAgent.chooseProject();
   currentSessionID = null;

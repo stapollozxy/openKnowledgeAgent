@@ -93,6 +93,13 @@ class Store:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as conn:
             conn.executescript(SCHEMA)
+            profile_columns = {
+                row["name"] for row in conn.execute("PRAGMA table_info(profile)")
+            }
+            if "course" not in profile_columns:
+                conn.execute(
+                    "ALTER TABLE profile ADD COLUMN course TEXT NOT NULL DEFAULT ''"
+                )
             columns = {row["name"] for row in conn.execute("PRAGMA table_info(sessions)")}
             if "topic_id" not in columns:
                 conn.execute("ALTER TABLE sessions ADD COLUMN topic_id INTEGER")
@@ -134,26 +141,55 @@ class Store:
         weekly_hours: float,
         github_repo: str | None,
         course_progress: str = "",
+        course: str = "",
     ) -> None:
         with self.connect() as conn:
             conn.execute(
                 """
                 INSERT INTO profile
-                    (id, goal, deadline, weekly_hours, github_repo, course_progress, updated_at)
-                VALUES (1, ?, ?, ?, ?, ?, ?)
+                    (id, goal, deadline, weekly_hours, github_repo, course, course_progress, updated_at)
+                VALUES (1, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     goal=excluded.goal,
                     deadline=excluded.deadline,
                     weekly_hours=excluded.weekly_hours,
                     github_repo=excluded.github_repo,
+                    course=CASE
+                        WHEN excluded.course = '' THEN profile.course
+                        ELSE excluded.course
+                    END,
                     course_progress=CASE
                         WHEN excluded.course_progress = '' THEN profile.course_progress
                         ELSE excluded.course_progress
                     END,
                     updated_at=excluded.updated_at
                 """,
-                (goal, deadline, weekly_hours, github_repo, course_progress, now_iso()),
+                (goal, deadline, weekly_hours, github_repo, course, course_progress, now_iso()),
             )
+
+    def update_profile(self, changes: dict[str, Any]) -> dict[str, Any]:
+        limits = {"course": 300, "course_progress": 2000, "goal": 4000}
+        normalized: dict[str, str] = {}
+        for key, value in changes.items():
+            if key not in limits:
+                raise ValueError(f"Profile field is not writable: {key}")
+            if not isinstance(value, str):
+                raise ValueError(f"Profile field must be text: {key}")
+            value = value.strip()
+            if not value:
+                raise ValueError(f"Profile field cannot be blank: {key}")
+            if len(value) > limits[key]:
+                raise ValueError(f"Profile field is too long: {key}")
+            normalized[key] = value
+        if not normalized:
+            raise ValueError("No supported profile changes were provided")
+        assignments = ", ".join(f"{key}=?" for key in normalized)
+        with self.connect() as conn:
+            conn.execute(
+                f"UPDATE profile SET {assignments}, updated_at=? WHERE id=1",
+                (*normalized.values(), now_iso()),
+            )
+        return self.profile() or {}
 
     def update_progress(self, progress: str) -> None:
         with self.connect() as conn:
